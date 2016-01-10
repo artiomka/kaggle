@@ -14,3 +14,5 @@ TODO:
 use gridsearch and votingclassifier
 http://scikit-learn.org/stable/modules/ensemble.html
 https://medium.com/@chris_bour/6-tricks-i-learned-from-the-otto-kaggle-challenge-a9299378cd61#.sjtyovd6g
+
+KNN in sklearn is very slow.
