@@ -1,3 +1,73 @@
+import xgboost as xgb
+import preprocessing as pr_kaggle
+import pandas as pd
+import numpy as np
+import xgboost as xgb
+from sklearn import preprocessing as pre
+from sklearn.cross_validation import train_test_split
+from sklearn.ensemble import RandomForestClassifier, BaggingClassifier
+from sklearn.ensemble import GradientBoostingClassifier as GBC
+from sklearn.calibration import CalibratedClassifierCV
+from sklearn.linear_model import LogisticRegression
+
+def check_classifier(Xtrain, ytrain, Xtest, ytest, clf):
+    clf.fit(Xtrain, ytrain, eval_metric = "auc")
+    print clf.score(Xtrain, ytrain)
+    print clf.score(Xtest, ytest)
+
+def check_xgb_classifier(Xtrain, ytrain, Xtest, ytest, clf):
+    clf.fit(Xtrain, ytrain,
+       eval_metric = "auc",
+            #early_stopping_rounds = 150,
+            #eval_set=((Xtrain, ytrain), (Xvalidation, yvalidation), ),
+            #verbose = False
+           )
+    print clf.score(Xtrain, ytrain)
+    print clf.score(Xtest, ytest)
+
+def test_gcb(Xy = None, n_estimators = 100, max_depth = 10, test_size = 0.1):
+    if Xy is None:
+        X, y = pr_kaggle.load_data()
+    else:
+        X, y = Xy
+    Xtrain, Xtest, ytrain, ytest = train_test_split(X, y,
+        test_size=test_size, random_state=36)
+    dc = lambda: GBC(learning_rate = 0.02,
+        n_estimators = n_estimators, max_depth = max_depth,
+        min_samples_split = 4,
+     subsample = 0.8, max_features = 0.66)
+    clf = dc()
+    check_classifier(Xtrain, ytrain, Xtest, ytest,clf )
+
+    clf = dc()
+    clfbag = BaggingClassifier(clf, n_estimators=5)
+    check_classifier(Xtrain, ytrain, Xtest, ytest,clfbag )
+
+    clf = dc()
+    clf_isotonic = CalibratedClassifierCV(clf, cv=5, method='isotonic')
+    check_classifier(Xtrain, ytrain, Xtest, ytest,clf_isotonic )
+
+def test_xgb(Xy = None, n_estimators = 100, max_depth = 10, test_size = 0.1):
+    if Xy is None:
+        X, y = pr_kaggle.load_data()
+    else:
+        X, y = Xy
+    Xtrain, Xtest, ytrain, ytest = train_test_split(X, y,
+        test_size=test_size, random_state=36)
+    dc = lambda: xgb.XGBClassifier(n_estimators=n_estimators,
+        learning_rate=0.02, max_depth = max_depth, subsample =0.85,
+        colsample_bytree = 0.66)
+    clf = dc()
+    check_xgb_classifier(Xtrain, ytrain, Xtest, ytest,clf )
+#
+    clf = dc()
+    clfbag = BaggingClassifier(clf, n_estimators=5)
+    check_classifier(Xtrain, ytrain, Xtest, ytest,clfbag )
+
+    clf = dc()
+    clf_isotonic = CalibratedClassifierCV(clf, cv=5, method='isotonic')
+    check_classifier(Xtrain, ytrain, Xtest, ytest,clf_isotonic )
+
 """
 Original R code:
 # Based on Ben Hamner script from Springleaf
@@ -81,7 +151,7 @@ dval<-xgb.DMatrix(data=data.matrix(tra[h,]),label=train$QuoteConversion_Flag[h])
 dtrain<-xgb.DMatrix(data=data.matrix(tra[,]),label=train$QuoteConversion_Flag)
 
 watchlist<-list(val=dval,train=dtrain)
-param <- list(  objective           = "binary:logistic", 
+param <- list(  objective           = "binary:logistic",
                 booster = "gbtree",
                 eval_metric = "auc",
                 eta                 = 0.02, # 0.06, #0.01,
@@ -89,13 +159,13 @@ param <- list(  objective           = "binary:logistic",
                 subsample           = 0.85, # 0.7
                 colsample_bytree    = 0.66 # 0.7
                 #num_parallel_tree   = 2
-                # alpha = 0.0001, 
+                # alpha = 0.0001,
                 # lambda = 1
 )
 
-clf <- xgb.train(   params              = param, 
-                    data                = dtrain, 
-                    nrounds             = 30, #1500, 
+clf <- xgb.train(   params              = param,
+                    data                = dtrain,
+                    nrounds             = 30, #1500,
                     verbose             = 0,  #1
                     #early.stop.round    = 150,
                     #watchlist           = watchlist,
@@ -110,8 +180,4 @@ pred1 <- predict(clf, data.matrix(test1))
 submission <- data.frame(QuoteNumber=test$QuoteNumber, QuoteConversion_Flag=pred1)
 cat("saving the submission file\n")
 write_csv(submission, "xgb_Shize_stop_1500_8.csv")
-
-
-
-
-""" 
+"""

@@ -62,3 +62,18 @@ def convert_data(dataframe, cat2vectors = True, normalize_numeric = True):
             X.append(extract_numeric_data(dataframe[c], normalize_numeric))
     X = filter(lambda x: len(x) > 0, X)
     return np.vstack(X).T, y
+
+def load_data(get_nan_feature = True):
+    train = pd.read_csv('train.csv')
+    train.replace([' ', '', -1], np.nan, inplace = True)
+    if get_nan_feature:
+        train['NaNCount'] = train.isnull().sum(axis=1)
+    X, y = convert_data(train, cat2vectors = False, normalize_numeric = False)
+    print X.shape, y.shape
+    return X, y
+
+
+
+
+
+
