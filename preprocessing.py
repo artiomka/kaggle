@@ -9,22 +9,25 @@ from sklearn.calibration import CalibratedClassifierCV
 
 def convert_date_data(date_data):
     date = pd.to_datetime(pd.Series(date_data))
-    return np.vstack([date.dt.year, date.dt.month, 
+    return np.vstack([date.dt.year, date.dt.month,
                       date.dt.day, date.dt.dayofweek])
 
 from collections import Counter
 def extract_object_data(row, cat2vectors = True):
     counts = Counter(row)
-    row = row.fillna(max(filter(lambda x: x != np.nan, counts.keys()), 
+    row = row.fillna(max(filter(lambda x: x != np.nan, counts.keys()),
                key = lambda x: counts[x]))
     if cat2vectors:
         data = pd.get_dummies(row).values
+        if data.shape[1] == 1:
+            print 'constant data'
+            return []
     else:
         c2i = dict((c, i) for i,c in enumerate(counts.keys(), start=1))
+        if len(c2i) == 1:
+            print 'constant data'
+            return []
         data = np.asarray([c2i[k] for k in row])
-    if data.shape[1] == 1:
-        print 'constant data'
-        return []
     return data.T
 
 def extract_numeric_data(row, normalize_numeric = True):
@@ -37,8 +40,8 @@ def extract_numeric_data(row, normalize_numeric = True):
         row = row/row.std()
     return row.values
 
-def extract_ordinal_data(row):
-    return extract_numeric_data(row)
+def extract_ordinal_data(row, normalize_numeric = False):
+    return extract_numeric_data(row, normalize_numeric)
 
 
 def convert_data(dataframe, cat2vectors = True, normalize_numeric = True):
@@ -52,10 +55,10 @@ def convert_data(dataframe, cat2vectors = True, normalize_numeric = True):
             print c, 'skipped'
             continue
         if train[c].dtype == object:
-            X.append(extract_object_data(dataframe[c]))
+            X.append(extract_object_data(dataframe[c], cat2vectors))
         elif c.endswith('A') or c.endswith('B'):
             X.append(extract_ordinal_data(dataframe[c]))
         else:
-            X.append(extract_numeric_data(dataframe[c]))
+            X.append(extract_numeric_data(dataframe[c], normalize_numeric))
     X = filter(lambda x: len(x) > 0, X)
     return np.vstack(X).T, y
