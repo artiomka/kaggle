@@ -54,7 +54,7 @@ def convert_data(dataframe, cat2vectors = True, normalize_numeric = True):
         if c in columns_to_skip:
             print c, 'skipped'
             continue
-        if train[c].dtype == object:
+        if dataframe[c].dtype == object:
             X.append(extract_object_data(dataframe[c], cat2vectors))
         elif c.endswith('A') or c.endswith('B'):
             X.append(extract_ordinal_data(dataframe[c]))

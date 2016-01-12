@@ -11,7 +11,7 @@ from sklearn.calibration import CalibratedClassifierCV
 from sklearn.linear_model import LogisticRegression
 
 def check_classifier(Xtrain, ytrain, Xtest, ytest, clf):
-    clf.fit(Xtrain, ytrain, eval_metric = "auc")
+    clf.fit(Xtrain, ytrain)
     print clf.score(Xtrain, ytrain)
     print clf.score(Xtest, ytest)
 
