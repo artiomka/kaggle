@@ -34,8 +34,9 @@ def test_gcb(Xy = None, n_estimators = 100, max_depth = 10, test_size = 0.1):
         test_size=test_size, random_state=36)
     dc = lambda: GBC(learning_rate = 0.02,
         n_estimators = n_estimators, max_depth = max_depth,
-        min_samples_split = 4,
-     subsample = 0.8, max_features = 0.66)
+     #    min_samples_split = 4,
+     # subsample = 0.8, max_features = 0.66
+    )
     clf = dc()
     check_classifier(Xtrain, ytrain, Xtest, ytest,clf )
 
@@ -68,6 +69,23 @@ def test_xgb(Xy = None, n_estimators = 100, max_depth = 10, test_size = 0.1):
     clf_isotonic = CalibratedClassifierCV(clf, cv=5, method='isotonic')
     check_classifier(Xtrain, ytrain, Xtest, ytest,clf_isotonic )
 
+def xgb_for_submission(n_estimators = 100, max_depth = 10, cat2vectors = False):
+  X, y, Xtest, test_df = pr_kaggle.load_data(load_test = True, cat2vectors = True)
+  dc = lambda: xgb.XGBClassifier(n_estimators=n_estimators,
+                                 learning_rate=0.02, max_depth = max_depth,
+                                 subsample =0.85, colsample_bytree = 0.66)
+  clf = dc()
+  clf.fit(X, y,
+       eval_metric = "auc",
+            #early_stopping_rounds = 150,
+            #eval_set=((Xtrain, ytrain), (Xvalidation, yvalidation), ),
+            #verbose = False
+           )
+  print clf.score(X, y)
+  t = clf.predict_proba(Xtest)
+  print t.shape
+  score = test_df['QuoteConversion_Flag'] = t[:,1]
+  test_df[['QuoteNumber', 'QuoteConversion_Flag']].to_csv('submission_xgb_%d_%d.csv' %(n_estimators, max_depth), index=False)
 """
 Original R code:
 # Based on Ben Hamner script from Springleaf

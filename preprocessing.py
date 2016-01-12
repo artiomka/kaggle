@@ -13,67 +13,104 @@ def convert_date_data(date_data):
                       date.dt.day, date.dt.dayofweek])
 
 from collections import Counter
-def extract_object_data(row, cat2vectors = True):
-    counts = Counter(row)
-    row = row.fillna(max(filter(lambda x: x != np.nan, counts.keys()),
-               key = lambda x: counts[x]))
-    if cat2vectors:
-        data = pd.get_dummies(row).values
-        if data.shape[1] == 1:
-            print 'constant data'
-            return []
-    else:
-        c2i = dict((c, i) for i,c in enumerate(counts.keys(), start=1))
-        if len(c2i) == 1:
-            print 'constant data'
-            return []
-        data = np.asarray([c2i[k] for k in row])
-    return data.T
-
-def extract_numeric_data(row, normalize_numeric = True):
-    row = row.fillna(row.median())
-    if len(row.unique()) == 1:
-        return []
-
-    if normalize_numeric:
-        row = row - row.mean()
-        row = row/row.std()
-    return row.values
-
-def extract_ordinal_data(row, normalize_numeric = False):
-    return extract_numeric_data(row, normalize_numeric)
+def extract_object_data(column, cat2vectors = True, counts = None):
+  if counts is None:
+    counts = Counter(column)
+  else:
+    new_counts = column.unique()
+    new_values = list(set(new_counts).difference(counts.keys()))
+    if len(new_values) > 0:
+      print 'new values', new_values
+      column = column.replace(new_values, np.nan)
+      print 'new values', set(column.unique()).difference(counts)
 
 
-def convert_data(dataframe, cat2vectors = True, normalize_numeric = True):
+  column = column.fillna(max(filter(lambda x: x != np.nan, counts.keys()),
+                             key = lambda x: counts[x]))
+  if cat2vectors:
+    c2i = dict((c, i) for i,c in enumerate(counts.keys()))
+    ic = np.eye(len(c2i))
+    ti = map(lambda x: c2i[x], column)
+    data = ic[ti]
+    # data = pd.get_dummies(column).values
+    if data.shape[1] == 1:
+      print 'constant data'
+      return []
+  else:
+    c2i = dict((c, i) for i,c in enumerate(counts.keys(), start=1))
+    if len(c2i) == 1:
+      print 'constant data'
+      return []
+    data = np.asarray([c2i[k] for k in column])
+  return data.T, counts
+
+def extract_numeric_data(column, normalize_numeric = True, mean_std = None):
+  column = column.fillna(column.median())
+  if len(column.unique()) == 1:
+    return []
+
+  if normalize_numeric:
+    if mean_std is None:
+      mean_std = [column.mean(),column.std()]
+    column = column - mean_std[0]
+    column = column/mean_std[1]
+  return column.values, mean_std
+
+def extract_ordinal_data(column, normalize_numeric = False, mean_std = None):
+    return extract_numeric_data(column, normalize_numeric, mean_std = mean_std)
+
+
+def convert_data(dataframe, cat2vectors = True, normalize_numeric = True, test = None):
     y = dataframe.QuoteConversion_Flag.values
-    X = []
+    X, Xtest = [], []
     X.append(convert_date_data(dataframe['Original_Quote_Date']))
+    if test is not None:
+      Xtest.append(convert_date_data(test['Original_Quote_Date']))
     columns_to_skip = ['Original_Quote_Date', 'QuoteConversion_Flag',
                       'QuoteNumber']
     for c in dataframe.columns:
         if c in columns_to_skip:
             print c, 'skipped'
             continue
+        test_column = None if test is None else test[c]
         if dataframe[c].dtype == object:
-            X.append(extract_object_data(dataframe[c], cat2vectors))
+            rv = extract_object_data(dataframe[c], cat2vectors)
+            if len(rv) == 0: continue
+            X.append(rv[0])
+            if test_column is not None:
+              Xtest.append(extract_object_data(test_column, cat2vectors, counts = rv[1])[0])
         elif c.endswith('A') or c.endswith('B'):
-            X.append(extract_ordinal_data(dataframe[c]))
+            rv= extract_ordinal_data(dataframe[c])
+            if len(rv) == 0: continue
+            X.append(rv[0])
+            if test_column is not None:
+              Xtest.append(extract_ordinal_data(test_column)[0])
         else:
-            X.append(extract_numeric_data(dataframe[c], normalize_numeric))
-    X = filter(lambda x: len(x) > 0, X)
-    return np.vstack(X).T, y
+            rv = extract_numeric_data(dataframe[c], normalize_numeric)
+            if len(rv) == 0: continue
+            X.append(rv[0])
+            if test_column is not None:
+              Xtest.append(extract_numeric_data(test_column, normalize_numeric, mean_std = rv[1])[0])
+    X = np.vstack(filter(lambda x: len(x) > 0, X)).T
+    if test is not None:
+      Xtest = np.vstack(filter(lambda x: len(x) > 0, Xtest)).T
+    else:
+      Xtest = np.asarray(Xtest)
+    return X, y, Xtest
 
-def load_data(get_nan_feature = True):
+def load_data(get_nan_feature = True, load_test = False, cat2vectors = False):
     train = pd.read_csv('train.csv')
+    test = pd.read_csv('test.csv') if load_test else None
     train.replace([' ', '', -1], np.nan, inplace = True)
+    if test is not None:
+      test.replace([' ', '', -1], np.nan, inplace = True)
     if get_nan_feature:
         train['NaNCount'] = train.isnull().sum(axis=1)
-    X, y = convert_data(train, cat2vectors = False, normalize_numeric = False)
-    print X.shape, y.shape
-    return X, y
-
-
-
-
-
-
+        if test is not None:
+          test['NaNCount'] = test.isnull().sum(axis = 1)
+    X, y, Xtest = convert_data(train, cat2vectors = cat2vectors, normalize_numeric = False, test = test)
+    print X.shape, y.shape, Xtest.shape
+    if load_test:
+      return X,y,Xtest, test
+    else:
+      return X, y
