@@ -86,6 +86,19 @@ def xgb_for_submission(n_estimators = 100, max_depth = 10, cat2vectors = False):
   print t.shape
   score = test_df['QuoteConversion_Flag'] = t[:,1]
   test_df[['QuoteNumber', 'QuoteConversion_Flag']].to_csv('submission_xgb_%d_%d.csv' %(n_estimators, max_depth), index=False)
+
+  clf = dc()
+  clf_isotonic = CalibratedClassifierCV(clf, cv=5, method='isotonic')
+  clf_isotonic.fit(X, y,
+            #early_stopping_rounds = 150,
+            #eval_set=((Xtrain, ytrain), (Xvalidation, yvalidation), ),
+            #verbose = False
+           )
+  print clf_isotonic.score(X, y)
+  t = clf_isotonic.predict_proba(Xtest)
+  print t.shape
+  score = test_df['QuoteConversion_Flag'] = t[:,1]
+  test_df[['QuoteNumber', 'QuoteConversion_Flag']].to_csv('submission_xgb_isotonic_%d_%d.csv' %(n_estimators, max_depth), index=False)
 """
 Original R code:
 # Based on Ben Hamner script from Springleaf
