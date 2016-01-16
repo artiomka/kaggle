@@ -48,19 +48,19 @@ def report(grid_scores, n_top=3):
         print("Parameters: {0}".format(score.parameters))
         print("")
 
-def find_xgb_best_parameters(test_size = 0.2, n_iter_search = 20):
-  X, y = pr_kaggle.load_data(cat2vectors=True)
+def find_xgb_best_parameters(test_size = 0.2, n_iter_search = 20, X = None, y=None):
+  if X is None or y is None:
+    X, y = pr_kaggle.load_data(cat2vectors=True)
   Xtrain, Xtest, ytrain, ytest = train_test_split(X, y,
     test_size=test_size, random_state=36)
   param_dist = {
   "n_estimators" : [50, 100, 250, 500],
-  #"n_estimators" : [1,3],
-  "max_depth": [3, 10, 15, 20],
-  "learning_rate": [0.01, 0.1, 0.05],
-  "subsample": [0.5, 1.0, 0.85, 0.7],
-  "gamma": [0,0.01],
-  "min_child_weight": [0.5, 1],
-  "colsample_bytree": [1.0, 0.5, 0.66, 0.75, 0.9]}
+  "max_depth": [10,5,15],
+  "learning_rate": [0.01, 0.1, 0.0333],
+  "subsample": [0.5, 1.0, 0.80],
+  #"gamma": [0,0.01],
+  #"min_child_weight": [0.5, 1],
+  "colsample_bytree": [1.0, 0.5, 0.8, 0.9]}
   start = time()
   clf = xgb.XGBClassifier()
   random_search = RandomizedSearchCV(clf, param_distributions=param_dist,
